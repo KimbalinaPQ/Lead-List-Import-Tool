@@ -1,4 +1,4 @@
-<!-- Edited by: Jim Saiya 2017-10-25 -->
+<!-- Edited by: Jim Saiya 2018-10-10 -->
 <!DOCTYPE html>
 <!-- xlsx.js (C) 2013-present  SheetJS sheetjs.com -->
 <!-- vim: set ts=2: -->
@@ -129,16 +129,16 @@ h2 {
 	</div>
 
 	<div id="notifyZone" class="container sectionBlock">
-		<div class="col-sm-11 col-md-11 col-lg-11">
+		<div class="col-sm-11">
 			Upload File: <b><span id="dspFilename"></span></b>
 		</div>
-		<div class="col-sm-1 col-md-1 col-lg-1">
+		<div class="col-sm-1">
 			<button id="btnReload" class="btn btn-success pull-right">Reset</button>
 		</div>
-		<div class="col-sm-11 col-md-11 col-lg-11">
+		<div class="col-sm-11">
 			Upload Type: <b><span id="dspFiletype"></span></b>
 		</div>
-		<div class="col-sm-7 col-md-7 col-lg-7 text-left">
+		<div class="col-sm-7 text-left">
 			<h2><div id="fnlImportStatus"></div></h2>
 			<div>
 				<div id="nextSteps" class="text-left"></div>
@@ -149,25 +149,25 @@ h2 {
 	<div id="statusZone" class="container sectionBlock">
 		<hr>
 		<div class="container sectionBlock">
-			<div class="col-sm-12 col-md-12 col-lg-12 text-left">
+			<div class="col-sm-12 text-left">
 				<h2>Summary:</h2>
 			</div>
-			<div class="col-sm-5 col-md-5 col-lg-5 text-right">
+			<div class="col-sm-5 text-right">
 				Total Spreadsheet Rows for Processing:<br>
 				Total Spreadsheet Rows with Required Data:<br>
 				Total Spreadsheet Rows with Missing Required Data:<br>
 			</div>
-			<div class="col-sm-1 col-md-1 col-lg-1">
+			<div class="col-sm-1">
 				<div id="tot_rows"></div>
 				<div id="tot_good_rows" class="text-success"></div>
 				<div id="tot_bad_rows" class="text-danger"></div>
 			</div>
-			<div class="col-sm-6 col-md-6 col-lg-6">
+			<div class="col-sm-6">
 				<div id="importSummary" class="text-left"></div>
 			</div>
 		</div>
 		<div class="container sectionBlock">
-			<div class="col-sm-4 col-md-4 col-lg-4">
+			<div class="col-sm-4">
 				<a id="myUploadBtn" class="btn btn-primary btn-md" onclick="upload_info();">Start My Upload</a>
 			</div>
 		</div>
@@ -180,7 +180,8 @@ h2 {
 		</div>
 	</div>
 
-	<iframe class="hidden" name="@rcvrForm" height='100%' width='100%' scrolling='no' src='https://www.pages04.net/proquest/GEMS-RCVR/rcvr-noalerts.html' allowfullscreen></iframe>
+	<!-- Target frame for receiver form served from IMC/WCA - the form inserts a record into the leads DB -->
+	<iframe name="@rcvrForm" class="hidden" src="https://www.pages04.net/proquest/GEMS-RCVR/rcvr-noalerts.html" height="100%" width="100%" scrolling="no" allowfullscreen></iframe>
 
 <!-- ################################################ HTML ABOVE ################################################# -->
 
@@ -195,14 +196,30 @@ h2 {
 <script src="ods.js"></script>
 
 <script>
-var arrBlob = [];
-var blah = [];
-var arrValidate = [];
+var wbSheets = [];
+var rowFields = [];
+var requiredFields = [];
 var totRows = 0;
-var fileTypes = ['xlsx', 'xls'];  // acceptable file types
+var validFileTypes = ['xlsx', 'xls'];  // acceptable file types
+
+// Initialize variables and prepare the display
+function init() {
+	$('.filepicked').val('');
+	$('#importSummary').empty();
+	$('#myUploadBtn').hide().fadeOut('slow');
+	$('#btnReload').hide().fadeOut('slow');
+	$('#notifyZone').hide().fadeOut('slow');
+	$('#dropZone').hide().fadeOut('slow');
+	$('#statusZone').hide().fadeOut('slow');
+	$('#preZone').hide().fadeOut('slow');
+	$('#tsFrame').hide();
+	wbSheets = [];
+	rowFields = [];
+	requiredFields = [];
+}
 
 $( document ).ready(function() {
-	setProcess();
+	init();
 	$('#selectUploadType').val('select');
 	$('#btnReload').click(function() {
 		location.reload();
@@ -245,18 +262,18 @@ var wtf_mode = false;
 
 // User has selected an upload type from the dropdown menu
 function etSelect() {
-	if (jQuery.inArray('first_name', arrValidate) !== -1) {
-		setProcess();
+	if (jQuery.inArray('first_name', requiredFields) !== -1) { // form needs to be reset
+		init();
 	}
 	// set which fields are mandatory
 	if ($('#selectUploadType').val() === 'imcOnly') {
-		arrValidate = ['email'];
+		requiredFields = ['email'];
 		$('#dropZone').fadeIn('slow');
 	} else if ($('#selectUploadType').val() === 'imcSF') {
-		arrValidate = ['first_name','last_name','company','email','market','submarket','state','country','lead_source','lead_status','last_touch_lead_source','last_touch_lead_source_date'];
+		requiredFields = ['lead_source','last_touch_lead_source','last_touch_lead_source_date','lead_status','first_name','last_name','company','email','market','submarket','state','country'];
 		$('#dropZone').fadeIn('slow');
 	} else if ($('#selectUploadType').val() === 'imcSFCmpn') {
-		arrValidate = ['first_name','last_name','company','email','market','submarket','state','country','lead_source','lead_status','campaign_id','campaign_member_status','last_touch_lead_source','last_touch_lead_source_date'];
+		requiredFields = ['lead_source','last_touch_lead_source','last_touch_lead_source_date','lead_status','campaign_id','campaign_member_status','first_name','last_name','company','email','market','submarket','state','country'];
 		$('#dropZone').fadeIn('slow');
 	} else {
 		$('#dropZone').hide().fadeOut('slow');
@@ -265,73 +282,76 @@ function etSelect() {
 
 // User clicked the "Start My Upload" button
 function upload_info() {
-	// Set rcvrFormName to						| to generate these alerts
+	// Set receiverPage to						| to generate these alerts
 	// -----------------------------------------|-------------------------------
-	var RCVR_NOALERTS = "rcvr-noalerts.html";	// No alerts generated
-	var RCVR_ALERTS   = "rcvr-alerts.html";		// Send an email and issue a task
-	var RCVR_EMAIL    = "rcvr-email.html";		// Send an email only
-//	var z_url_base = "https://www.pages04.net/proquest-sandbox/GEMS-RCVR/";		// SANDBOX CONNECTION
-	var z_url_base = "https://www.pages04.net/proquest/GEMS-RCVR/";				// PRODUCTION CONNECTION
-	z_url = z_url_base + RCVR_NOALERTS;  // default form file to receive data on the IMC server
-	z_target = "@rcvrForm";
-	currentProcessed = 0;
+	var RCVR_NOALERTS = 'rcvr-noalerts.html';	// No alerts generated
+	var RCVR_ALERTS   = 'rcvr-alerts.html';		// Send an email and issue a task
+	var RCVR_EMAIL    = 'rcvr-email.html';		// Send an email only
+
+//	var receiverUrlBase = 'https://www.pages04.net/proquest-sandbox/GEMS-RCVR/';		// SANDBOX CONNECTION
+	var receiverUrlBase = 'https://www.pages04.net/proquest/GEMS-RCVR/';				// PRODUCTION CONNECTION
+	var receiverUrl = receiverUrlBase + RCVR_NOALERTS;  // default form file to receive data on the IMC server
+	var receiverTarget = '@rcvrForm';
+	var processedRow = 0;
 	var delay = 0;
+
 	$('#preZone').show();
+
 	// process each row
-	$.each(blah.Template, function(i, item) {
+	$.each(wbSheets.Template, function(i, item) {
 		setTimeout(function() {
-			arrBlob = blah.Template[i];
-			rcvrFormPage = RCVR_NOALERTS;
-			leadSourceParam = "";
+			rowFields = wbSheets.Template[i];
+			receiverPage = RCVR_NOALERTS;
+			leadSourceParam = '';
 			// build the #formPostToIframe form element to hold the data to upload (1 spreadsheet row)
-			$('body').append('<form action="'+z_url+'" method="post" target="'+z_target+'" id="formPostToIframe"></form>');
+			$('body').append('<form id="formPostToIframe" method="post" action="'+receiverUrl+'" target="'+receiverTarget+'"></form>');
 			// loop through fields
-			for (var key in arrBlob) {
+			for (var key in rowFields) {
 				name = key;
-				value = arrBlob[key].toString();
-console.log('Row '+(i+1)+': '+name+' = '+value);
+				value = rowFields[key].toString();
+console.log('Row '+(i+1)+': '+name+' = '+value); ////////////////////////////////
 				if (name === 'campaign_id' && value !== '') {
 					$('#formPostToIframe').append('<input type="text" name="sp_ctc" value="'+value+'" />');
 				} else if (name === 'campaign_member_status' && value !== '') {
 					$('#formPostToIframe').append('<input type="text" name="sp_cts" value="'+value+'" />');
 				} else if (name === 'comments' && value !== '') {
-					rcvrFormPage = RCVR_ALERTS;
+					receiverPage = RCVR_ALERTS;
 					$('#formPostToIframe').append('<input type="text" name="'+name+'" value="'+value+'" />');
 				} else if (name === 'notes' && value !== '') {
-					if (rcvrFormPage !== RCVR_ALERTS)
-						rcvrFormPage = RCVR_EMAIL;  // only set this value if 'comments' field is empty
+					if (receiverPage !== RCVR_ALERTS)
+						receiverPage = RCVR_EMAIL;  // only set this value if 'comments' field is empty
 					$('#formPostToIframe').append('<input type="text" name="'+name+'" value="'+value+'" />');
 				} else if (name === 'lead_source' && value !== '') {
-					leadSourceParam = "?sp_source=" + value;
+					leadSourceParam = '?sp_source=' + value;
 				} else {
 					$('#formPostToIframe').append('<input type="text" name="'+name+'" value="'+value+'" />');
 				}
 			}
 			// build the URL to call when the form is submitted
-			z_url_source = z_url_base + rcvrFormPage + leadSourceParam;
+			receiverUrl = receiverUrlBase + receiverPage + leadSourceParam;
 
-//console.log('z_url_base: ' + z_url_base);
-console.log('rcvrFormPage: ' + rcvrFormPage);
-console.log('leadSourceParam: ' + leadSourceParam);
-console.log('z_url_source: ' + z_url_source);
+//console.log('receiverUrlBase: ' + receiverUrlBase); ////////////////////////////////
+console.log('receiverPage: ' + receiverPage); ////////////////////////////////
+console.log('leadSourceParam: ' + leadSourceParam); ////////////////////////////////
+console.log('receiverUrl: ' + receiverUrl); ////////////////////////////////
 
 			// trigger form submission and destroy form
-			$('#formPostToIframe').attr('action', z_url_source);
+			$('#formPostToIframe').attr('action', receiverUrl);
 			$('#formPostToIframe').submit().remove();
 
 			// running counter
-			currentProcessed++;
-			$('#out').append('<div>Spreadsheet row number <strong>'+currentProcessed+'</strong> has been processed.</div>');
-			if (currentProcessed == totRows) {
+			processedRow++;
+			$('#out').append('<div>Spreadsheet row number <strong>'+processedRow+'</strong> has been processed.</div>');
+			if (processedRow == totRows) {
 				$('#out').append('<div>Finished...!!!</div>');
 				$('#myUploadBtn').hide();
 			}
 		}, delay += 500);
-	}); // end $.each(blah.Template)
+	}); // end $.each(wbSheets.Template)
 } // end upload_info()
 
 function fixdata(data) {
-	var o = "", l = 0, w = 10240;
+	var o = '', l = 0, w = 10240;
 	for (; l < data.byteLength / w; ++l) o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l*w, l*w + w)));
 	o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l*w)));
 	return o;
@@ -339,7 +359,7 @@ function fixdata(data) {
 
 // Convert Array Buffer to String
 function ab2str(data) {
-	var o = "", l = 0, w = 10240;
+	var o = '', l = 0, w = 10240;
 	for (; l < data.byteLength / w; ++l) o += String.fromCharCode.apply(null, new Uint16Array(data.slice(l*w, l*w + w)));
 	o += String.fromCharCode.apply(null, new Uint16Array(data.slice(l*w)));
 	return o;
@@ -416,27 +436,26 @@ function process_wb(wb) {
 	$('#statusZone').fadeIn('slow');
 	$('#importSummary').empty();
 
-	var output = "";
+	var output = '';
 	output = JSON.stringify(to_json(wb), 2, 2);
-	blah = to_json(wb);
-	names = Object.getOwnPropertyNames(blah);
+	wbSheets = to_json(wb);
+	sheetNames = Object.getOwnPropertyNames(wbSheets);
 	totRows = 0;
 	var totGoodRows = 0;
 	var totBadRows = 0;
 
-	if (names[0] === 'Template') {
-		$.each(blah.Template, function(i, item) {
-			var catchit = false;
+	if (sheetNames[0] === 'Template') {
+		$.each(wbSheets.Template, function(i, item) {
+			var badRow = false;
 			totRows++;
-			thisTemplateItem = this;
-			$.each(arrValidate, function (j, val) {
-				if (thisTemplateItem[val] === undefined || thisTemplateItem[val] === '') {
-					badXcelRow = totRows;
-					$('#importSummary').append('<div>Spreadsheet Row <strong>'+badXcelRow+'</strong> is missing a value for <strong>'+val+'</strong>.</div>');
-					catchit = true;
+			thisRow = this;
+			$.each(requiredFields, function (j, field) {
+				if (thisRow[field] === undefined || thisRow[field] === '') {
+					$('#importSummary').append('<div>Spreadsheet Row <strong>'+totRows+'</strong> is missing a value for <strong>'+field+'</strong>.</div>');
+					badRow = true;
 				}
 			});
-			if (catchit) {
+			if (badRow) {
 				$('#importSummary').append('<hr>');
 				totBadRows++;
 			}
@@ -473,22 +492,6 @@ function process_wb(wb) {
 	}
 }
 
-// Initialize variables and prepare the display
-function setProcess() {
-	$('.filepicked').val('');
-	$('#importSummary').empty();
-	$('#myUploadBtn').hide().fadeOut('slow');
-	$('#btnReload').hide().fadeOut('slow');
-	$('#notifyZone').hide().fadeOut('slow');
-	$('#dropZone').hide().fadeOut('slow');
-	$('#statusZone').hide().fadeOut('slow');
-	$('#preZone').hide().fadeOut('slow');
-	$('#tsFrame').hide();
-	arrBlob = [];
-	blah = [];
-	arrValidate = [];
-}
-
 //	##############################   EVENT HANDLERS   ##################################
 
 var drop = document.getElementById('drop');
@@ -501,7 +504,7 @@ function handleDrop(e) {
 	var f = files[0];
 	{
 		var extension = files[0].name.split('.').pop().toLowerCase(),  // file extension from input file
-			isSuccess = fileTypes.indexOf(extension) > -1;  // is extension in acceptable types
+			isSuccess = validFileTypes.indexOf(extension) > -1;  // is extension in acceptable types
 		if (isSuccess) { // yes
 			var reader = new FileReader();
 			var name = f.name;
@@ -545,7 +548,7 @@ function handleDrop(e) {
 function handleDragover(e) {
 	e.stopPropagation();
 	e.preventDefault();
-	e.dataTransfer.dropEffect = "copy";
+	e.dataTransfer.dropEffect = 'copy';
 }
 
 if (drop.addEventListener) {
@@ -563,7 +566,7 @@ function handleFile(e) {
 	{
 		if (files && files[0]) {
 			var extension = files[0].name.split('.').pop().toLowerCase(),  // file extension from input file
-				isSuccess = fileTypes.indexOf(extension) > -1;  // is extension in acceptable types?
+				isSuccess = validFileTypes.indexOf(extension) > -1;  // is extension in acceptable types?
 			if (isSuccess) { // yes
 				var reader = new FileReader();
 				var name = f.name;
