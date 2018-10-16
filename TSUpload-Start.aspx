@@ -444,7 +444,10 @@ function process_wb(wb) {
 	var totGoodRows = 0;
 	var totBadRows = 0;
 
+	$('#notifyZone').hide().show();
+
 	if (sheetNames[0] === 'Template') {
+		$('#fnlImportStatus').hide().html('Checking import file for required fields...').show();
 		$.each(wbSheets.Template, function(i, item) {
 			var badRow = false;
 			totRows++;
@@ -455,6 +458,12 @@ function process_wb(wb) {
 					badRow = true;
 				}
 			});
+			if (thisRow['lead_status'] <> undefined && thisRow['lead_status'] === "Sales Ready") {
+				if (thisRow['sales_ready_type'] === undefined || thisRow['sales_ready_type'] === '') {
+					$('#importSummary').append('<div>Spreadsheet Row <strong>'+totRows+'</strong> has lead_status set to "Sales Ready," but <strong>sales_ready_type</strong> is missing a value.</div>');
+					badRow = true;
+				}
+			}
 			if (badRow) {
 				$('#importSummary').append('<hr>');
 				totBadRows++;
@@ -489,6 +498,7 @@ function process_wb(wb) {
 		$('#dspFiletype').hide().html('----------').fadeIn('slow');
 		$('#statusZone').hide().fadeOut('slow');
 		$('#fnlImportStatus').hide().html('<h2>Spreadsheet file does not contain TEMPLATE tab.</h2>').fadeIn('slow');
+		$('#fnlImportStatus').addClass('text-danger');
 	}
 }
 
