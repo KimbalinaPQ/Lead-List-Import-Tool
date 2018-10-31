@@ -245,7 +245,7 @@ if (!rABS) {
 }
 
 var use_worker = typeof Worker !== 'undefined';
-//use_worker = false;  //////////////////////////////// uncomment if running on a local system
+use_worker = false;  //////////////////////////////// uncomment if running on a local system
 if (!use_worker) {
 	document.getElementsByName('useworker')[0].disabled = true;
 	document.getElementsByName('useworker')[0].checked = false;
