@@ -1,4 +1,4 @@
-<!-- Edited by: Jim Saiya 2018-10-10 -->
+<!-- Edited by: Jim Saiya 2018-11-01 -->
 <!DOCTYPE html>
 <!-- xlsx.js (C) 2013-present  SheetJS sheetjs.com -->
 <!-- vim: set ts=4: -->
@@ -18,15 +18,15 @@
 <script src="js-xlsx/xlsx.js"></script>
 <style>
 body {
-	font-family: "Open Sans";
+	font-family: "Open Sans", sans-serif;
 }
 h1 {
-	font-family: "Open Sans";
+	font-family: "Open Sans", sans-serif;
 	font-size: 31px;
 	font-weight: 300;
 }
 h2 {
-	font-family: "Open Sans";
+	font-family: "Open Sans", sans-serif;
 	font-size: 26px;
 	font-weight: 300;
 }
@@ -37,7 +37,9 @@ h2 {
 	border-radius: 5px;
 	padding: 25px;
 	text-align: center;
-	font: 20pt bold,"Vollkorn";
+	font-family: "Open Sans", sans-serif;
+	font-size: 20px;
+	font-weight: bold;
 	color: #BBB;
 }
 .hidden {
@@ -153,9 +155,9 @@ h2 {
 				<h2>Summary:</h2>
 			</div>
 			<div class="col-sm-5 text-right">
-				Total Spreadsheet Rows for Processing:<br>
-				Total Spreadsheet Rows with Required Data:<br>
-				Total Spreadsheet Rows with Missing Required Data:<br>
+				Total Spreadsheet Rows checked:<br>
+				Total correct Spreadsheet Rows:<br>
+				Total Spreadsheet Rows with error(s):<br>
 			</div>
 			<div class="col-sm-1">
 				<div id="tot_rows"></div>
@@ -193,7 +195,7 @@ h2 {
 <!--<script src="dist/cpexcel.js"></script>-->
 
 <!-- uncomment the next line here and in xlsxworker.js for ODS support -->
-<script src="ods.js"></script>
+<!--<script src="dist/ods.js"></script>-->
 
 <script>
 var wbSheets = [];
@@ -262,7 +264,7 @@ var wtf_mode = false;
 
 // User has selected an upload type from the dropdown menu
 function etSelect() {
-	if (jQuery.inArray('first_name', requiredFields) !== -1) { // form needs to be reset
+	if (jQuery.inArray('first_name', requiredFields) !== -1) {  // form needs to be reset
 		init();
 	}
 	// set which fields are mandatory
@@ -347,8 +349,8 @@ console.log('receiverUrl: ' + receiverUrl); ////////////////////////////////
 				$('#myUploadBtn').hide();
 			}
 		}, delay += 500);
-	}); // end $.each(wbSheets.Template)
-} // end upload_info()
+	});  // end $.each(wbSheets.Template)
+}  // end upload_info()
 
 function fixdata(data) {
 	var o = '', l = 0, w = 10240;
@@ -436,13 +438,14 @@ function process_wb(wb) {
 	$('#statusZone').fadeIn('slow');
 	$('#importSummary').empty();
 
-	var output = '';
-	output = JSON.stringify(to_json(wb), 2, 2);
+//	var output = '';
+//	output = JSON.stringify(to_json(wb), 2, 2);
 	wbSheets = to_json(wb);
 	sheetNames = Object.getOwnPropertyNames(wbSheets);
 	totRows = 0;
 	var totGoodRows = 0;
 	var totBadRows = 0;
+	var currentRow = 0;
 
 	$('#notifyZone').hide().show();
 
@@ -451,16 +454,26 @@ function process_wb(wb) {
 		$.each(wbSheets.Template, function(i, item) {
 			var badRow = false;
 			totRows++;
+			currentRow = totRows + 1;
 			thisRow = this;
 			$.each(requiredFields, function (j, field) {
 				if (thisRow[field] === undefined || thisRow[field] === '') {
-					$('#importSummary').append('<div>Spreadsheet Row <strong>'+totRows+'</strong> is missing a value for <strong>'+field+'</strong>.</div>');
+					$('#importSummary').append('<div>Row <strong>'+currentRow+'</strong> is missing a value for <strong>'+field+'</strong>.</div>');
 					badRow = true;
 				}
-			});
+			});  // end each field loop
 			if (thisRow['lead_status'] != undefined && thisRow['lead_status'] === 'Sales Ready') {
 				if (thisRow['sales_ready_type'] === undefined || thisRow['sales_ready_type'] === '') {
-					$('#importSummary').append('<div>Spreadsheet Row <strong>'+totRows+'</strong> has lead_status set to "Sales Ready," but <strong>sales_ready_type</strong> is missing a value.</div>');
+					$('#importSummary').append('<div>Row <strong>'+currentRow+'</strong> has lead_status set to "Sales Ready," but <strong>sales_ready_type</strong> is missing a value.</div>');
+					badRow = true;
+				}
+			} else {
+				if (thisRow['sales_ready_type'] != undefined && thisRow['sales_ready_type'] != '') {
+					if (thisRow['lead_status'] != undefined && thisRow['lead_status'] != '') {
+						$('#importSummary').append('<div>Row <strong>'+currentRow+'</strong> has a lead_status value not set to "Sales Ready," therefore <strong>sales_ready_type</strong> value should not be selected.</div>');
+					} else {
+						$('#importSummary').append('<div>Row <strong>'+currentRow+'</strong> lead_status field is blank, therefore <strong>sales_ready_type</strong> value should not be selected.</div>');
+					}
 					badRow = true;
 				}
 			}
@@ -468,15 +481,15 @@ function process_wb(wb) {
 				$('#importSummary').append('<hr>');
 				totBadRows++;
 			}
-		});
-		//	##############################   Write totals to File Status Area   ##################################
+		});  // end each row loop
+		// Write totals to File Status Area
 		$('#tot_rows').html('<b>'+totRows+'</b>');
 		$('#tot_good_rows').html('<b>'+(totRows - totBadRows)+'</b>');
 		$('#tot_bad_rows').html('<b>'+totBadRows+'</b>');
 		if (totBadRows > 0) {
 			$('#fnlImportStatus').hide().html('File Import FAILED required fields check!').fadeIn('slow');
 			$('#fnlImportStatus').addClass('text-danger');
-			$('#nextSteps').hide().html('(Please check the fields below on the import file and retry file upload.)').fadeIn('slow');
+			$('#nextSteps').hide().html('Please check the fields below on the import file and retry file upload.').fadeIn('slow');
 			$('#myUploadBtn').prop('disabled', true);
 			$('#btnReload').hide().fadeIn('slow');
 			$('#dropZone').hide().fadeOut('slow');
@@ -490,14 +503,14 @@ function process_wb(wb) {
 			$('#dropZone').hide().fadeOut('slow');
 			$('#etZone').hide().fadeOut('slow');
 		}
-	} else { // first tab is not named 'Template'
+	} else {  // first tab is not named 'Template'
 		$('#dropZone').hide().fadeOut('slow');
 		$('#notifyZone').hide().fadeIn('slow');
 		$('#btnReload').hide().fadeIn('slow');
 		$('#dspFilename').hide().html('----------').fadeIn('slow');
 		$('#dspFiletype').hide().html('----------').fadeIn('slow');
 		$('#statusZone').hide().fadeOut('slow');
-		$('#fnlImportStatus').hide().html('<h2>Spreadsheet file does not contain TEMPLATE tab.</h2>').fadeIn('slow');
+		$('#fnlImportStatus').hide().html('<h2>First tab of spreadsheet file is not named "Template".</h2>').fadeIn('slow');
 		$('#fnlImportStatus').addClass('text-danger');
 	}
 }
@@ -515,7 +528,7 @@ function handleDrop(e) {
 	{
 		var extension = files[0].name.split('.').pop().toLowerCase(),  // file extension from input file
 			isSuccess = validFileTypes.indexOf(extension) > -1;  // is extension in acceptable types
-		if (isSuccess) { // yes
+		if (isSuccess) {  // yes
 			var reader = new FileReader();
 			var name = f.name;
 			reader.onload = function(e) {
@@ -533,7 +546,7 @@ function handleDrop(e) {
 					}
 					process_wb(wb);
 				}
-			}; // end reader.onload
+			};  // end reader.onload
 			$('#notifyZone').hide().fadeOut('slow');
 			$('#browseBtnRow').fadeOut('slow');
 			$('#btnReload').fadeIn('slow');
@@ -541,7 +554,7 @@ function handleDrop(e) {
 			$('#dspFiletype').hide().html($('#selectUploadType option:selected').text()).fadeIn('slow');
 			if (rABS) reader.readAsBinaryString(f);
 			else reader.readAsArrayBuffer(f);
-		} else { // not an acceptable file type
+		} else {  // not an acceptable file type
 			$('.filepicked').val('');
 			$('#dropZone').hide().fadeOut('slow');
 			$('#notifyZone').hide().fadeIn('slow');
@@ -550,7 +563,7 @@ function handleDrop(e) {
 			$('#dspFiletype').hide().html('----------').fadeIn('slow');
 			$('#fnlImportStatus').hide().html('<h2>IMPROPER FILE TYPE</h2>').fadeIn('slow');
 			$('#fnlImportStatus').addClass('text-danger');
-			$('#nextSteps').hide().html('(Only XLSX or XLS files may be used to upload.)').fadeIn('slow');
+			$('#nextSteps').hide().html('Only XLSX or XLS files may be used to upload.').fadeIn('slow');
 		}
 	}
 }
@@ -577,7 +590,7 @@ function handleFile(e) {
 		if (files && files[0]) {
 			var extension = files[0].name.split('.').pop().toLowerCase(),  // file extension from input file
 				isSuccess = validFileTypes.indexOf(extension) > -1;  // is extension in acceptable types?
-			if (isSuccess) { // yes
+			if (isSuccess) {  // yes
 				var reader = new FileReader();
 				var name = f.name;
 				reader.onload = function(e) {
@@ -595,13 +608,13 @@ function handleFile(e) {
 						}
 						process_wb(wb);
 					}
-				}; // end reader.onload
+				};  // end reader.onload
 				$('#btnReload').fadeIn('slow');
 				$('#dspFilename').hide().html(name).fadeIn('slow');
 				$('#dspFiletype').hide().html($('#selectUploadType option:selected').text()).fadeIn('slow');
 				if (rABS) reader.readAsBinaryString(f);
 				else reader.readAsArrayBuffer(f);
-			} else { // not an acceptable file type
+			} else {  // not an acceptable file type
 				$('.filepicked').val('');
 				$('#dropZone').hide().fadeOut('slow');
 				$('#notifyZone').hide().fadeIn('slow');
@@ -610,7 +623,7 @@ function handleFile(e) {
 				$('#dspFiletype').hide().html('----------').fadeIn('slow');
 				$('#fnlImportStatus').html('<h2>IMPROPER FILE TYPE</h2>').fadeIn('slow');
 				$('#fnlImportStatus').addClass('text-danger');
-				$('#nextSteps').hide().html('(Only XLSX or XLS files may be used to upload.)').fadeIn('slow');
+				$('#nextSteps').hide().html('Only XLSX or XLS files may be used to upload.').fadeIn('slow');
 			}
 		}
 	}
